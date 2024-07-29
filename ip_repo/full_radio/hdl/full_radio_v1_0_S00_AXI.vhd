@@ -119,6 +119,59 @@ architecture arch_imp of full_radio_v1_0_S00_AXI is
 	signal byte_index	: integer;
 	signal aw_en	: std_logic;
 
+
+    -- Filter 1 signals
+    signal s_filter_1_tvalid_i : std_logic;
+    signal s_filter_1_tdata_i : std_logic_vector(31 downto 0);
+
+    signal s_filter_1_tvalid_q : std_logic;
+    signal s_filter_1_tdata_q : std_logic_vector(31 downto 0);
+
+    -- Filter 2 signals
+    signal s_filter_2_tvalid_i : std_logic;
+    signal s_filter_2_tdata_i : std_logic_vector(31 downto 0);
+    signal s_filtered_data_i : std_logic_vector(15 downto 0);
+
+    signal s_filter_2_tvalid_q : std_logic;
+    signal s_filter_2_tdata_q : std_logic_vector(31 downto 0);
+    signal s_filtered_data_q : std_logic_vector(15 downto 0);
+
+    -- Reset signal
+    signal s_resetn : std_logic;
+
+    -- Data for DAC interface
+    signal s_dac_data_in : std_logic_vector(31 downto 0);
+
+    -- DATA for DDS
+    signal s_dds_resetn : std_logic;
+--    signal s_dds_resetn_ctrl_fclk0 : std_logic;
+--    signal s_dds_resetn_ctrl : std_logic;
+--    signal s_dds_phase_inc_fclk0 : std_logic_vector(31 downto 0);
+--    signal s_dds_phase_inc : std_logic_vector(31 downto 0);
+    signal s_dds_data_out : std_logic_vector(15 downto 0);
+    signal s_dds_data_out_valid : std_logic;
+
+    -- DATA for mixer
+--    signal s_mixer_phase_inc_fclk0 : std_logic_vector(31 downto 0);
+--    signal s_mixer_phase_inc : std_logic_vector(31 downto 0);
+    signal s_mixer_data_out : std_logic_vector(31 downto 0);
+    signal s_mixer_data_out_real : std_logic_vector(15 downto 0);
+    signal s_mixer_data_out_imag : std_logic_vector(15 downto 0);
+    signal s_mixer_data_out_valid : std_logic;
+
+    signal s_mixed_data_i_full : std_logic_vector(31 downto 0);
+    signal s_mixed_data_q_full : std_logic_vector(31 downto 0);
+
+    signal s_mixed_data_i : std_logic_vector(15 downto 0);
+    signal s_mixed_data_q : std_logic_vector(15 downto 0);
+    
+    -- Free running counter
+    signal clk_counter : unsigned(31 downto 0);
+
+    -- Processor clock
+--    signal fclk0 : std_logic;
+
+
 COMPONENT dds_compiler_0
   PORT (
     aclk : IN STD_LOGIC;
@@ -126,9 +179,43 @@ COMPONENT dds_compiler_0
     s_axis_phase_tvalid : IN STD_LOGIC;
     s_axis_phase_tdata : IN STD_LOGIC_VECTOR(31 DOWNTO 0);
     m_axis_data_tvalid : OUT STD_LOGIC;
-    m_axis_data_tdata : OUT STD_LOGIC_VECTOR(31 DOWNTO 0)
+    m_axis_data_tdata : OUT STD_LOGIC_VECTOR(15 DOWNTO 0) 
   );
-    END COMPONENT;
+END COMPONENT;
+
+COMPONENT dds_mixer
+  PORT (
+    aclk : IN STD_LOGIC;
+    aresetn : IN STD_LOGIC;
+    s_axis_phase_tvalid : IN STD_LOGIC;
+    s_axis_phase_tdata : IN STD_LOGIC_VECTOR(31 DOWNTO 0);
+    m_axis_data_tvalid : OUT STD_LOGIC;
+    m_axis_data_tdata : OUT STD_LOGIC_VECTOR(31 DOWNTO 0) 
+  );
+END COMPONENT;
+
+COMPONENT filter_1
+  PORT (
+    aclk : IN STD_LOGIC;
+    s_axis_data_tvalid : IN STD_LOGIC;
+    s_axis_data_tready : OUT STD_LOGIC;
+    s_axis_data_tdata : IN STD_LOGIC_VECTOR(15 DOWNTO 0);
+    m_axis_data_tvalid : OUT STD_LOGIC;
+    m_axis_data_tdata : OUT STD_LOGIC_VECTOR(31 DOWNTO 0) 
+  );
+END COMPONENT;
+
+COMPONENT filter_2
+  PORT (
+    aclk : IN STD_LOGIC;
+    s_axis_data_tvalid : IN STD_LOGIC;
+    s_axis_data_tready : OUT STD_LOGIC;
+    s_axis_data_tdata : IN STD_LOGIC_VECTOR(15 DOWNTO 0);
+    m_axis_data_tvalid : OUT STD_LOGIC;
+    m_axis_data_tdata : OUT STD_LOGIC_VECTOR(31 DOWNTO 0) 
+  );
+END COMPONENT;
+
 
 begin
 	-- I/O Connections assignments
@@ -367,11 +454,11 @@ begin
 	      when b"00" =>
 	        reg_data_out <= slv_reg0;
 	      when b"01" =>
-	        reg_data_out <= x"DEADBEEF";
+	        reg_data_out <= slv_reg1;
 	      when b"10" =>
 	        reg_data_out <= slv_reg2;
 	      when b"11" =>
-	        reg_data_out <= slv_reg3;
+	        reg_data_out <= std_logic_vector(clk_counter); -- slv_reg3
 	      when others =>
 	        reg_data_out  <= (others => '0');
 	    end case;
@@ -397,17 +484,110 @@ begin
 
 
 	-- Add user logic here
+	
+	free_running_counter : process (s_axi_aclk, s_axi_aresetn)
+	begin
+	   if (rising_edge(s_axi_aclk)) then
+	       if (s_axi_aresetn = '0') then
+	           clk_counter <= (others => '0');
+	       else
+	           clk_counter <= clk_counter + 1;
+	       end if;
+	   end if;
+	end process;
+		
+	s_dds_resetn <= not slv_reg2(0);
 
-your_instance_name : dds_compiler_0
-  PORT MAP (
-    aclk => s_axi_aclk,
-    aresetn => '1',
-    s_axis_phase_tvalid => '1',
-    s_axis_phase_tdata => slv_reg0,
-    m_axis_data_tvalid => m_axis_tvalid,
-    m_axis_data_tdata => m_axis_tdata
-  );
+    fake_adc : dds_compiler_0
+      PORT MAP (
+        aclk => s_axi_aclk,
+        aresetn => s_dds_resetn, -- '1',
+        s_axis_phase_tvalid => '1',
+        s_axis_phase_tdata => slv_reg0,
+        m_axis_data_tvalid => s_dds_data_out_valid, -- m_axis_tvalid,
+        m_axis_data_tdata => s_dds_data_out -- m_axis_tdata
+      );
+    
 
+    mixer : dds_mixer
+      PORT MAP (
+        aclk => s_axi_aclk,
+        aresetn => '1',
+        s_axis_phase_tvalid => '1',
+        s_axis_phase_tdata => slv_reg1,
+        m_axis_data_tvalid => s_mixer_data_out_valid,
+        m_axis_data_tdata => s_mixer_data_out
+      );
+
+    s_mixer_data_out_real <= s_mixer_data_out(15 downto 0);
+    s_mixer_data_out_imag <= s_mixer_data_out(31 downto 16);
+
+    s_mixed_data_i_full <= std_logic_vector(signed(s_mixer_data_out_real) * signed(s_dds_data_out));
+    s_mixed_data_q_full <= std_logic_vector(signed(s_mixer_data_out_imag) * signed(s_dds_data_out));
+
+    s_mixed_data_i <= s_mixed_data_i_full(30 downto 15);
+    s_mixed_data_q <= s_mixed_data_q_full(30 downto 15);
+
+
+    -- IN-PHASE FILTERING --
+
+    -- FIR Filter 1
+    --  Decimates by 40
+    fir_filter_1_i : filter_1
+      PORT MAP (
+        aclk => s_axi_aclk,
+        s_axis_data_tvalid => '1', -- tie this signal high since it takes input every clock cycle
+        s_axis_data_tready => open,
+        s_axis_data_tdata => s_mixed_data_i,
+        m_axis_data_tvalid => s_filter_1_tvalid_i,
+        m_axis_data_tdata => s_filter_1_tdata_i
+      );
+
+    -- FIR Filter 2
+    --  Decimates by 64
+    fir_filter_2_i : filter_2
+      PORT MAP (
+        aclk => s_axi_aclk,
+        s_axis_data_tvalid => s_filter_1_tvalid_i,
+        s_axis_data_tready => open,
+        s_axis_data_tdata => s_filter_1_tdata_i(30 downto 15),
+        m_axis_data_tvalid => s_filter_2_tvalid_i,
+        m_axis_data_tdata => s_filter_2_tdata_i
+      );
+
+    s_filtered_data_i <= s_filter_2_tdata_i(30 downto 15);
+
+
+    -- QUADRATURE FILTERING --
+
+    -- FIR Filter 1
+    --  Decimates by 40
+    fir_filter_1_q : filter_1
+      PORT MAP (
+        aclk => s_axi_aclk,
+        s_axis_data_tvalid => '1', -- tie this signal high since it takes input every clock cycle
+        s_axis_data_tready => open,
+        s_axis_data_tdata => s_mixed_data_q,
+        m_axis_data_tvalid => s_filter_1_tvalid_q,
+        m_axis_data_tdata => s_filter_1_tdata_q
+      );
+
+    -- FIR Filter 2
+    --  Decimates by 64
+    fir_filter_2_q : filter_2
+      PORT MAP (
+        aclk => s_axi_aclk,
+        s_axis_data_tvalid => s_filter_1_tvalid_q,
+        s_axis_data_tready => open,
+        s_axis_data_tdata => s_filter_1_tdata_q(30 downto 15),
+        m_axis_data_tvalid => s_filter_2_tvalid_q,
+        m_axis_data_tdata => s_filter_2_tdata_q
+      );
+
+    s_filtered_data_q <= s_filter_2_tdata_q(30 downto 15);
+
+    m_axis_tdata <= s_filtered_data_q & s_filtered_data_i;
+    m_axis_tvalid <= s_filter_2_tvalid_q; -- valid can come from either I or Q
 
 	-- User logic ends
 
