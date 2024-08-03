@@ -144,16 +144,10 @@ architecture arch_imp of full_radio_v1_0_S00_AXI is
 
     -- DATA for DDS
     signal s_dds_resetn : std_logic;
---    signal s_dds_resetn_ctrl_fclk0 : std_logic;
---    signal s_dds_resetn_ctrl : std_logic;
---    signal s_dds_phase_inc_fclk0 : std_logic_vector(31 downto 0);
---    signal s_dds_phase_inc : std_logic_vector(31 downto 0);
     signal s_dds_data_out : std_logic_vector(15 downto 0);
     signal s_dds_data_out_valid : std_logic;
 
     -- DATA for mixer
---    signal s_mixer_phase_inc_fclk0 : std_logic_vector(31 downto 0);
---    signal s_mixer_phase_inc : std_logic_vector(31 downto 0);
     signal s_mixer_data_out : std_logic_vector(31 downto 0);
     signal s_mixer_data_out_real : std_logic_vector(15 downto 0);
     signal s_mixer_data_out_imag : std_logic_vector(15 downto 0);
@@ -168,55 +162,52 @@ architecture arch_imp of full_radio_v1_0_S00_AXI is
     -- Free running counter
     signal clk_counter : unsigned(31 downto 0);
 
-    -- Processor clock
---    signal fclk0 : std_logic;
-
-
-COMPONENT dds_compiler_0
-  PORT (
-    aclk : IN STD_LOGIC;
-    aresetn : IN STD_LOGIC;
-    s_axis_phase_tvalid : IN STD_LOGIC;
-    s_axis_phase_tdata : IN STD_LOGIC_VECTOR(31 DOWNTO 0);
-    m_axis_data_tvalid : OUT STD_LOGIC;
-    m_axis_data_tdata : OUT STD_LOGIC_VECTOR(15 DOWNTO 0) 
-  );
-END COMPONENT;
-
-COMPONENT dds_mixer
-  PORT (
-    aclk : IN STD_LOGIC;
-    aresetn : IN STD_LOGIC;
-    s_axis_phase_tvalid : IN STD_LOGIC;
-    s_axis_phase_tdata : IN STD_LOGIC_VECTOR(31 DOWNTO 0);
-    m_axis_data_tvalid : OUT STD_LOGIC;
-    m_axis_data_tdata : OUT STD_LOGIC_VECTOR(31 DOWNTO 0) 
-  );
-END COMPONENT;
-
-COMPONENT filter_1
-  PORT (
-    aclk : IN STD_LOGIC;
-    s_axis_data_tvalid : IN STD_LOGIC;
-    s_axis_data_tready : OUT STD_LOGIC;
-    s_axis_data_tdata : IN STD_LOGIC_VECTOR(15 DOWNTO 0);
-    m_axis_data_tvalid : OUT STD_LOGIC;
-    m_axis_data_tdata : OUT STD_LOGIC_VECTOR(31 DOWNTO 0) 
-  );
-END COMPONENT;
-
-COMPONENT filter_2
-  PORT (
-    aclk : IN STD_LOGIC;
-    s_axis_data_tvalid : IN STD_LOGIC;
-    s_axis_data_tready : OUT STD_LOGIC;
-    s_axis_data_tdata : IN STD_LOGIC_VECTOR(15 DOWNTO 0);
-    m_axis_data_tvalid : OUT STD_LOGIC;
-    m_axis_data_tdata : OUT STD_LOGIC_VECTOR(31 DOWNTO 0) 
-  );
-END COMPONENT;
-
-
+    
+    COMPONENT dds_compiler_0
+      PORT (
+        aclk : IN STD_LOGIC;
+        aresetn : IN STD_LOGIC;
+        s_axis_phase_tvalid : IN STD_LOGIC;
+        s_axis_phase_tdata : IN STD_LOGIC_VECTOR(31 DOWNTO 0);
+        m_axis_data_tvalid : OUT STD_LOGIC;
+        m_axis_data_tdata : OUT STD_LOGIC_VECTOR(15 DOWNTO 0) 
+      );
+    END COMPONENT;
+    
+    COMPONENT dds_mixer
+      PORT (
+        aclk : IN STD_LOGIC;
+        aresetn : IN STD_LOGIC;
+        s_axis_phase_tvalid : IN STD_LOGIC;
+        s_axis_phase_tdata : IN STD_LOGIC_VECTOR(31 DOWNTO 0);
+        m_axis_data_tvalid : OUT STD_LOGIC;
+        m_axis_data_tdata : OUT STD_LOGIC_VECTOR(31 DOWNTO 0) 
+      );
+    END COMPONENT;
+    
+    COMPONENT filter_1
+      PORT (
+        aclk : IN STD_LOGIC;
+        s_axis_data_tvalid : IN STD_LOGIC;
+        s_axis_data_tready : OUT STD_LOGIC;
+        s_axis_data_tdata : IN STD_LOGIC_VECTOR(15 DOWNTO 0);
+        m_axis_data_tvalid : OUT STD_LOGIC;
+        m_axis_data_tdata : OUT STD_LOGIC_VECTOR(31 DOWNTO 0) 
+      );
+    END COMPONENT;
+    
+    COMPONENT filter_2
+      PORT (
+        aclk : IN STD_LOGIC;
+        s_axis_data_tvalid : IN STD_LOGIC;
+        s_axis_data_tready : OUT STD_LOGIC;
+        s_axis_data_tdata : IN STD_LOGIC_VECTOR(15 DOWNTO 0);
+        m_axis_data_tvalid : OUT STD_LOGIC;
+        m_axis_data_tdata : OUT STD_LOGIC_VECTOR(31 DOWNTO 0) 
+      );
+    END COMPONENT;
+    
+    
 begin
 	-- I/O Connections assignments
 
@@ -504,8 +495,8 @@ begin
         aresetn => s_dds_resetn, -- '1',
         s_axis_phase_tvalid => '1',
         s_axis_phase_tdata => slv_reg0,
-        m_axis_data_tvalid => s_dds_data_out_valid, -- m_axis_tvalid,
-        m_axis_data_tdata => s_dds_data_out -- m_axis_tdata
+        m_axis_data_tvalid => s_dds_data_out_valid,
+        m_axis_data_tdata => s_dds_data_out
       );
     
 
